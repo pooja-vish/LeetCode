@@ -1,0 +1,81 @@
+The system follows a microservices architecture. Requests first go through an API Gateway for authentication and routing. The Payment Service validates the request and creates a transaction with a PENDING status. It then publishes an event to Kafka. The Wallet Service consumes the event and performs debit/credit operations. Based on the result, the payment status is updated to SUCCESS or FAILED. Notification and Audit services consume events independently, making the system scalable and loosely coupled. Used PostgreSQL for persistence, Kafka for asynchronous communication, Redis for caching, and implemented idempotency keys to prevent duplicate payments.
+
+==================================================================
+
+1. User clicks "Pay Now"
+        |
+        v
+2. API Gateway authenticates request
+        |
+        v
+3. Payment Service
+   - Validates request
+   - Creates transaction (PENDING)
+        |
+        v
+4. Publish Payment Event to Kafka
+        |
+        v
+5. Wallet Service processes payment
+        |
+        +----> Success
+        |          |
+        |          v
+        |    Update Status = SUCCESS
+        |
+        +----> Failure
+                   |
+                   v
+            Update Status = FAILED
+
+        |
+        v
+6. Notification Service sends email/SMS
+        |
+        v
+7. Audit Service stores transaction history
+====================================================================
+
+                    +------------------+
+                    |     Customer     |
+                    +---------+--------+
+                              |
+                              v
+                    +------------------+
+                    |   API Gateway    |
+                    | Auth / Routing   |
+                    +---------+--------+
+                              |
+                              v
+                    +------------------+
+                    | Payment Service  |
+                    | Spring Boot      |
+                    +---------+--------+
+                              |
+             +----------------+----------------+
+             |                                 |
+             v                                 v
+    +------------------+             +------------------+
+    | PostgreSQL       |             | Kafka            |
+    | Payments Table   |             | Payment Events   |
+    +------------------+             +--------+---------+
+                                              |
+                    +-------------------------+------------------+
+                    |                                            |
+                    v                                            v
+          +------------------+                      +------------------+
+          | Wallet Service   |                      | Notification     |
+          | Debit/Credit     |                      | Service          |
+          +--------+---------+                      +--------+---------+
+                   |                                         |
+                   v                                         v
+          +------------------+                     Email / SMS Sent
+          | Update Status    |
+          | SUCCESS/FAILED   |
+          +--------+---------+
+                   |
+                   v
+          +------------------+
+          | Audit Service    |
+          | Transaction Logs |
+          +------------------+
